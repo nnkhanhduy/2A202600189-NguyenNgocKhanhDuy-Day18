@@ -36,7 +36,28 @@ def main():
     for item in test_set:
         results = search.search(item["question"], top_k=3, collection=NAIVE_COLLECTION)
         contexts = [r.text for r in results]
-        answers.append(contexts[0] if contexts else "Không tìm thấy.")
+
+        # Dùng LLM sinh câu trả lời — giống Production để so sánh công bằng
+        # (prompt đơn giản hơn Production → điểm faithfulness thấp hơn)
+        try:
+            from openai import OpenAI
+            client = OpenAI()
+            context_str = "\n\n".join(contexts)
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Trả lời câu hỏi dựa vào context được cung cấp. Nếu không có thông tin, trả lời 'Không tìm thấy thông tin trong tài liệu.'"},
+                    {"role": "user", "content": f"Context:\n{context_str}\n\nCâu hỏi: {item['question']}"},
+                ],
+                temperature=0.1,
+                max_tokens=300,
+            )
+            answer = resp.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"  LLM fallback: {e}")
+            answer = contexts[0] if contexts else "Không tìm thấy."
+
+        answers.append(answer)
         questions.append(item["question"])
         all_contexts.append(contexts)
         ground_truths.append(item["ground_truth"])

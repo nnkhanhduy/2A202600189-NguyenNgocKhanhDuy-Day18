@@ -1,0 +1,11 @@
+qdrant-client
+sentence-transformers
+rank-bm25
+pyvi
+python-dotenv
+openai
+ragas
+cohere
+pandas
+pytest
+pymupdf4llm

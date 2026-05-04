@@ -1,3 +1,42 @@
 [
-  {"question": "hihi cả nhà tự tạo testset bằng cơm nhé", "ground_truth": "Không kịp tạo luôn"},
+  {
+    "question": "Trong tờ khai GTGT, thuế GTGT còn phải nộp trong kỳ là bao nhiêu sau khi đã trừ phần mua vào của dự án đầu tư?",
+    "ground_truth": "52.133.830 đồng (mục [40] = [40a] - [40b] = 52.133.830 - 0 = 52.133.830 đồng)"
+  },
+  {
+    "question": "Khoản thuế GTGT khấu trừ từ kỳ trước chuyển sang và thuế phát sinh trong kỳ là bao nhiêu? Tổng cộng là bao nhiêu?",
+    "ground_truth": "Thuế GTGT còn được khấu trừ kỳ trước chuyển sang là 77.377.803 đồng. Thuế GTGT phát sinh trong kỳ là 129.511.633 đồng."
+  },
+  {
+    "question": "Công ty DHA Surfaces có doanh thu hàng hóa dịch vụ bán ra chịu thuế suất 10% là bao nhiêu và thuế tương ứng là bao nhiêu?",
+    "ground_truth": "Doanh thu hàng hóa bán ra chịu thuế suất 10% (mục [32]) là 3.703.685.610 đồng, thuế GTGT tương ứng (mục [33]) là 344.675.400 đồng."
+  },
+  {
+    "question": "Theo Nghị định 13/2023/NĐ-CP, người xử lý dữ liệu cá nhân phải thực hiện hạn chế xử lý dữ liệu và xóa dữ liệu trong bao nhiêu giờ kể từ khi nhận được yêu cầu từ chủ thể dữ liệu?",
+    "ground_truth": "Cả hai trường hợp đều là 72 giờ: hạn chế xử lý dữ liệu thực hiện trong 72 giờ sau khi có yêu cầu (Điều 9, khoản 6b), và xóa dữ liệu cũng thực hiện trong 72 giờ sau khi có yêu cầu (Điều 16, khoản 5)."
+  },
+  {
+    "question": "Nghị định 13/2023/NĐ-CP quy định sự im lặng của chủ thể dữ liệu có được coi là đồng ý không? Và đồng ý có thể được thể hiện qua những hình thức nào?",
+    "ground_truth": "Không, sự im lặng hoặc không phản hồi của chủ thể dữ liệu không được coi là sự đồng ý (Điều 11, khoản 6). Sự đồng ý có thể được thể hiện bằng văn bản, giọng nói, đánh dấu vào ô đồng ý, cú pháp đồng ý qua tin nhắn, chọn các thiết lập kỹ thuật đồng ý hoặc qua một hành động khác."
+  },
+  {
+    "question": "Theo Nghị định 13/2023/NĐ-CP, hồ sơ đánh giá tác động chuyển dữ liệu cá nhân ra nước ngoài phải được gửi cho cơ quan nào và trong thời hạn bao lâu kể từ ngày tiến hành xử lý?",
+    "ground_truth": "Bên chuyển dữ liệu ra nước ngoài gửi 01 bản chính hồ sơ tới Bộ Công an (Cục An ninh mạng và phòng, chống tội phạm sử dụng công nghệ cao) trong thời gian 60 ngày kể từ ngày tiến hành xử lý dữ liệu cá nhân (Điều 25, khoản 3)."
+  },
+  {
+    "question": "Nghị định 13/2023/NĐ-CP áp dụng cho những đối tượng nào ở nước ngoài liên quan đến Việt Nam?",
+    "ground_truth": "Nghị định áp dụng cho: cơ quan, tổ chức, cá nhân nước ngoài tại Việt Nam; cơ quan, tổ chức, cá nhân Việt Nam hoạt động tại nước ngoài; và cơ quan, tổ chức, cá nhân nước ngoài trực tiếp tham gia hoặc có liên quan đến hoạt động xử lý dữ liệu cá nhân tại Việt Nam."
+  },
+  {
+    "question": "Trong tờ khai BCTC, tổng giá trị hàng hóa dịch vụ mua vào (chưa thuế) và thuế GTGT đầu vào được khấu trừ là bao nhiêu?",
+    "ground_truth": "Giá trị hàng hóa dịch vụ mua vào chưa thuế (mục [23]) là 2.405.743.241 đồng. Thuế GTGT của hàng hóa dịch vụ mua vào được khấu trừ kỳ này (mục [25]) là 215.163.767 đồng."
+  },
+  {
+    "question": "Theo Nghị định 13/2023/NĐ-CP, doanh nghiệp siêu nhỏ có được miễn trừ quy định nào và trong bao lâu?",
+    "ground_truth": "Các doanh nghiệp siêu nhỏ, doanh nghiệp nhỏ, doanh nghiệp vừa, doanh nghiệp khởi nghiệp được quyền lựa chọn miễn trừ quy định về chỉ định cá nhân và bộ phận bảo vệ dữ liệu cá nhân trong thời gian 02 năm đầu kể từ khi thành lập doanh nghiệp (trừ trường hợp trực tiếp kinh doanh hoạt động xử lý dữ liệu cá nhân)."
+  },
+  {
+    "question": "Theo Nghị định 13/2023/NĐ-CP, khi xử lý dữ liệu cá nhân của trẻ em từ đủ 7 tuổi, cần có sự đồng ý của những ai?",
+    "ground_truth": "Cần có sự đồng ý của cả trẻ em (từ đủ 7 tuổi trở lên) VÀ cha, mẹ hoặc người giám hộ theo quy định. Bên xử lý dữ liệu phải xác minh tuổi của trẻ em trước khi xử lý (Điều 20, khoản 2)."
+  }
 ]

@@ -1,4 +1,10 @@
-"""Production RAG Pipeline — Bài tập NHÓM: ghép M1+M2+M3+M4."""
+"""Production RAG Pipeline — Bài tập NHÓM: ghép M1+M2+M3+M4.
+
+KEY FIXES:
+  1. Enriched text dùng CHỈ để INDEX (tăng recall khi search).
+  2. Original text (trước enrichment) đưa cho LLM → faithfulness cao hơn.
+  3. System prompt cứng 5 quy tắc + temperature=0.0 → giảm hallucination.
+"""
 
 import os, sys, time
 
@@ -18,33 +24,48 @@ def build_pipeline():
     print("PRODUCTION RAG PIPELINE")
     print("=" * 60)
 
-    # Step 1: Load & Chunk (M1)
-    print("\n[1/3] Chunking documents...")
+    # ── Step 1: Load & Chunk (M1) ──────────────────────────────────────────────
+    print("\n[1/4] Chunking documents (hierarchical)...")
     docs = load_documents()
-    all_chunks = []
-    for doc in docs:
-        parents, children = chunk_hierarchical(doc["text"], metadata=doc["metadata"])
-        for child in children:
-            all_chunks.append({"text": child.text, "metadata": {**child.metadata, "parent_id": child.parent_id}})
-    print(f"  {len(all_chunks)} chunks from {len(docs)} documents")
+    all_children_raw: list[dict] = []
 
-    # Step 2: Enrichment (M5)
-    print("\n[2/4] Enriching chunks (M5)...")
-    enriched = enrich_chunks(all_chunks, methods=["contextual", "hyqa", "metadata"])
+    for doc in docs:
+        _, children = chunk_hierarchical(doc["text"], metadata=doc["metadata"])
+        for child in children:
+            all_children_raw.append({
+                "text": child.text,
+                "metadata": {**child.metadata, "parent_id": child.parent_id or ""},
+            })
+
+    print(f"  {len(all_children_raw)} child chunks from {len(docs)} docs")
+
+    # ── Step 2: Enrichment (M5) ────────────────────────────────────────────────
+    # Enriched text → dùng để INDEX (semantic tốt hơn, tăng recall)
+    # Original text  → lưu vào metadata["_original_text"], đưa cho LLM sau
+    print("\n[2/4] Enriching child chunks for indexing (M5)...")
+    enriched = enrich_chunks(all_children_raw, methods=["contextual", "hyqa", "metadata"])
+
     if enriched:
-        # Use enriched text for indexing
-        all_chunks = [{"text": e.enriched_text, "metadata": e.auto_metadata} for e in enriched]
+        index_chunks: list[dict] = []
+        for e in enriched:
+            meta = {**e.auto_metadata}
+            meta["_original_text"] = e.original_text   # ← LLM sẽ đọc cái này
+            index_chunks.append({
+                "text": e.enriched_text,               # ← Index/search dùng cái này
+                "metadata": meta,
+            })
         print(f"  Enriched {len(enriched)} chunks")
     else:
-        print("  ⚠️  M5 not implemented — using raw chunks (fallback)")
+        print("  ⚠️  M5 not implemented — using raw child chunks (fallback)")
+        index_chunks = all_children_raw
 
-    # Step 3: Index (M2)
-    print("\n[3/4] Indexing (BM25 + Dense)...")
+    # ── Step 3: Index (M2) ────────────────────────────────────────────────────
+    print("\n[3/4] Indexing with Hybrid Search (BM25 + Dense)...")
     search = HybridSearch()
-    search.index(all_chunks)
+    search.index(index_chunks)
 
-    # Step 4: Reranker (M3)
-    print("\n[4/4] Loading reranker...")
+    # ── Step 4: Reranker (M3) ─────────────────────────────────────────────────
+    print("\n[4/4] Loading cross-encoder reranker...")
     reranker = CrossEncoderReranker()
 
     return search, reranker
@@ -52,27 +73,71 @@ def build_pipeline():
 
 def run_query(query: str, search: HybridSearch, reranker: CrossEncoderReranker) -> tuple[str, list[str]]:
     """Run single query through pipeline."""
-    results = search.search(query)
-    docs = [{"text": r.text, "score": r.score, "metadata": r.metadata} for r in results]
-    reranked = reranker.rerank(query, docs, top_k=RERANK_TOP_K)
-    contexts = [r.text for r in reranked] if reranked else [r.text for r in results[:3]]
 
-    # TODO (nhóm): Replace with LLM generation for better scores
-    # from openai import OpenAI
-    # client = OpenAI()
-    # context_str = "\n\n".join(contexts)
-    # resp = client.chat.completions.create(model="gpt-4o-mini", messages=[
-    #     {"role": "system", "content": "Trả lời CHỈ dựa trên context. Nếu không có → nói 'Không tìm thấy.'"},
-    #     {"role": "user", "content": f"Context:\n{context_str}\n\nCâu hỏi: {query}"},
-    # ])
-    # answer = resp.choices[0].message.content
-    answer = contexts[0] if contexts else "Không tìm thấy thông tin."
+    # ── Retrieve (Hybrid BM25 + Dense + RRF) ──────────────────────────────────
+    results = search.search(query)
+    docs_for_rerank = [
+        {"text": r.text, "score": r.score, "metadata": r.metadata}
+        for r in results
+    ]
+
+    # ── Rerank (Cross-encoder) ─────────────────────────────────────────────────
+    reranked = reranker.rerank(query, docs_for_rerank, top_k=RERANK_TOP_K)
+    top_items = reranked if reranked else results[:RERANK_TOP_K]
+
+    # ── Build contexts: dùng original_text (trước enrichment) cho LLM ─────────
+    # Lý do: enriched_text có câu AI-generated prepend → LLM "bịa" theo → faithfulness thấp
+    # Original_text = tài liệu gốc → LLM trả lời trung thực hơn → faithfulness cao
+    contexts: list[str] = []
+    for item in top_items:
+        meta = item.metadata if hasattr(item, "metadata") else {}
+        original = meta.get("_original_text", "")
+        contexts.append(original if original else item.text)
+
+    if not contexts:
+        contexts = [r.text for r in results[:RERANK_TOP_K]]
+
+    # ── Generate answer (prompt cứng → faithfulness cao) ──────────────────────
+    try:
+        from openai import OpenAI
+        client = OpenAI()
+        context_str = "\n\n---\n\n".join(contexts)
+
+        system_prompt = (
+            "Bạn là trợ lý AI trả lời câu hỏi CHỈ DỰA VÀO tài liệu được cung cấp.\n"
+            "NGUYÊN TẮC BẮT BUỘC:\n"
+            "1. Chỉ dùng thông tin có trong [CONTEXT]. Không thêm kiến thức bên ngoài.\n"
+            "2. Trích xuất thông tin chính xác từ context. Không diễn giải tự do.\n"
+            "3. Nếu context không có thông tin: trả lời 'Không tìm thấy thông tin trong tài liệu.'\n"
+            "4. Câu trả lời ngắn gọn, đúng trọng tâm, bằng tiếng Việt."
+        )
+
+        user_prompt = (
+            f"[CONTEXT]\n{context_str}\n\n"
+            f"[CÂU HỎI]\n{query}\n\n"
+            "[TRẢ LỜI] (chỉ dựa vào context trên, không thêm thông tin ngoài):"
+        )
+
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.0,   # deterministic → giảm hallucination tối đa
+            max_tokens=400,
+        )
+        answer = resp.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"  ⚠️  LLM error: {e}")
+        answer = contexts[0] if contexts else "Không tìm thấy thông tin."
+
     return answer, contexts
 
 
 def evaluate_pipeline(search: HybridSearch, reranker: CrossEncoderReranker):
     """Run evaluation on test set."""
-    print("\n[Eval] Running queries...")
+    print("\n[Eval] Running queries on test set...")
     test_set = load_test_set()
     questions, answers, all_contexts, ground_truths = [], [], [], []
 
@@ -82,9 +147,9 @@ def evaluate_pipeline(search: HybridSearch, reranker: CrossEncoderReranker):
         answers.append(answer)
         all_contexts.append(contexts)
         ground_truths.append(item["ground_truth"])
-        print(f"  [{i+1}/{len(test_set)}] {item['question'][:50]}...")
+        print(f"  [{i+1}/{len(test_set)}] {item['question'][:60]}...")
 
-    print("\n[Eval] Running RAGAS...")
+    print("\n[Eval] Running RAGAS evaluation...")
     results = evaluate_ragas(questions, answers, all_contexts, ground_truths)
 
     print("\n" + "=" * 60)

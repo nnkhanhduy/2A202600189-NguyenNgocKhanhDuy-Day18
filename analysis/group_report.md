@@ -3,11 +3,10 @@
 
 ---
 
-## 1. Team Information
+## 1. Team Information(Làm 1 mình)
 
 | Field | Info |
 |---|---|
-| Course | AI Engineer Bootcamp — VinUni |
 | Lab | Day 18 — Production RAG Pipeline |
 | Track | Track 3: Production RAG |
 | Submission Date | 2026-05-04 |
